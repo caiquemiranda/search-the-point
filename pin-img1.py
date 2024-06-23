@@ -31,7 +31,7 @@ class ZoomPanImage:
         self.coord_listbox = tk.Listbox(self.coord_frame, width=30)
         self.coord_listbox.pack(fill=tk.Y)
 
-        self.radius = 5  # Raio do círculo vermelho
+        self.radius = 5 
 
         self.canvas.bind("<Button-1>", self.on_click)
         self.canvas.bind("<MouseWheel>", self.on_zoom)
@@ -61,7 +61,7 @@ class ZoomPanImage:
                       x + self.radius / self.zoom_factor, y + self.radius / self.zoom_factor), fill='red', outline='black')
         self.update_image()
 
-        # Exibir as coordenadas na tela
+        
         self.canvas.create_text(
             event.x, event.y, text=f'({x:.2f}, {y:.2f})', fill='red', anchor=tk.NW)
 
@@ -92,10 +92,9 @@ class ZoomPanImage:
         self.canvas.coords(self.image_id, self.canvas_x, self.canvas_y)
 
 
-# Caminho da imagem
+# imagem
 image_path = "imagens/page_1.png"
 
-# Obter coordenadas clicando na imagem com zoom e pan
 zoom_pan_image = ZoomPanImage(image_path)
 print('Coordenadas obtidas:')
 for coordinate in zoom_pan_image.coordinates:

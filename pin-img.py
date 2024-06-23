@@ -7,15 +7,12 @@ class ZoomPanImage:
         self.root = tk.Tk()
         self.root.title("Clique na imagem para obter as coordenadas")
 
-        # Frame principal para organizar a interface
         self.main_frame = tk.Frame(self.root)
         self.main_frame.pack(side=tk.LEFT, padx=20, pady=20)
 
-        # Frame para a imagem
         self.image_frame = tk.Frame(self.main_frame)
         self.image_frame.pack(side=tk.LEFT, padx=10)
 
-        # Carregar a imagem
         self.image = Image.open(image_path)
         self.original_image = self.image.copy()
         self.width, self.height = self.image.size
@@ -23,7 +20,6 @@ class ZoomPanImage:
         self.click_count = 0
         self.coordinates = []
 
-        # Canvas para exibir a imagem
         self.canvas = tk.Canvas(
             self.image_frame, width=self.width, height=self.height)
         self.canvas.pack()
@@ -32,7 +28,6 @@ class ZoomPanImage:
         self.image_id = self.canvas.create_image(
             0, 0, anchor=tk.NW, image=self.tk_image)
 
-        # Frame para a lista de coordenadas
         self.coord_frame = tk.Frame(self.main_frame)
         self.coord_frame.pack(side=tk.RIGHT, fill=tk.Y, padx=10)
 
@@ -43,9 +38,8 @@ class ZoomPanImage:
         self.coord_listbox = tk.Listbox(self.coord_frame, width=30)
         self.coord_listbox.pack(fill=tk.Y)
 
-        self.radius = 5  # Raio do círculo vermelho
+        self.radius = 5 
 
-        # Bindings para os eventos
         self.canvas.bind("<Button-1>", self.on_click)
         self.canvas.bind("<MouseWheel>", self.on_zoom)
         self.canvas.bind("<ButtonPress-2>", self.on_pan_start)
@@ -74,7 +68,6 @@ class ZoomPanImage:
                       x + self.radius / self.zoom_factor, y + self.radius / self.zoom_factor), fill='red', outline='black')
         self.update_image()
 
-        # Exibir as coordenadas na tela
         self.canvas.create_text(
             event.x, event.y, text=f'({x:.2f}, {y:.2f})', fill='red', anchor=tk.NW)
 
@@ -105,10 +98,9 @@ class ZoomPanImage:
         self.canvas.coords(self.image_id, self.canvas_x, self.canvas_y)
 
 
-# Caminho da imagem
+# imagem
 image_path = "imagens/page_1.png"
 
-# Obter coordenadas clicando na imagem com zoom e pan
 zoom_pan_image = ZoomPanImage(image_path)
 print('Coordenadas obtidas:')
 for coordinate in zoom_pan_image.coordinates:

@@ -2,73 +2,125 @@ import tkinter as tk
 from tkinter import filedialog
 from PIL import Image, ImageTk
 
+zoom_factor = 2 
 
-def zoom_in(image, coordinates, zoom_factor=2):
+
+def zoom_in(image, coordinates, zoom_factor):
     x, y = coordinates
-    box_size = 100  # Tamanho da área a ser ampliada
-    x1, y1 = max(0, x - box_size), max(0, y - box_size)
-    x2, y2 = min(image.width, x + box_size), min(image.height, y + box_size)
+    width, height = image.size
+    new_width = int(width * zoom_factor)
+    new_height = int(height * zoom_factor)
 
-    cropped_area = image.crop((x1, y1, x2, y2))
-    zoomed_area = cropped_area.resize(
-        (cropped_area.width * zoom_factor, cropped_area.height * zoom_factor), Image.LANCZOS)
 
-    zoomed_image = Image.new('RGB', image.size)
-    center_x, center_y = x, y
-    offset_x, offset_y = center_x - \
-        (zoomed_area.width // 2), center_y - (zoomed_area.height // 2)
+    zoomed_image = image.resize((new_width, new_height), Image.LANCZOS)
 
-    zoomed_image.paste(image, (0, 0))
-    zoomed_image.paste(zoomed_area, (offset_x, offset_y))
+   
+    new_x = x * zoom_factor
+    new_y = y * zoom_factor
 
-    return zoomed_image
+    return zoomed_image, new_x, new_y
 
 
 def open_image():
-    global img, tk_img, original_img
+    global img, tk_img, original_img, zoomed_img, canvas_img, current_zoom
     file_path = filedialog.askopenfilename()
     if file_path:
         original_img = Image.open(file_path)
-        img = original_img.copy()
+        zoomed_img = original_img.copy()
+        img = zoomed_img
+        current_zoom = 1  # Zoom inicial
         tk_img = ImageTk.PhotoImage(img)
+        canvas.config(scrollregion=(0, 0, img.width, img.height))
+        canvas_img = canvas.create_image(0, 0, anchor=tk.NW, image=tk_img)
         canvas.config(width=img.width, height=img.height)
-        canvas.create_image(0, 0, anchor=tk.NW, image=tk_img)
-        frame_coords.pack(side=tk.LEFT, padx=10, pady=10)
 
 
 def apply_zoom():
-    global img, tk_img, original_img
-    x = int(entry_x.get())
-    y = int(entry_y.get())
-    img = zoom_in(original_img, (x, y))
+    global img, tk_img, zoomed_img, canvas_img, current_zoom
+    x = float(entry_x.get())
+    y = float(entry_y.get())
+    current_zoom = zoom_factor
+    zoomed_img, new_x, new_y = zoom_in(original_img, (x, y), current_zoom)
+    img = zoomed_img
     tk_img = ImageTk.PhotoImage(img)
-    canvas.create_image(0, 0, anchor=tk.NW, image=tk_img)
+    canvas.delete(canvas_img)
+    canvas_img = canvas.create_image(0, 0, anchor=tk.NW, image=tk_img)
+    canvas.config(scrollregion=(0, 0, img.width, img.height))
+    canvas.config(width=img.width, height=img.height)
+    canvas.xview_moveto(new_x / img.width)
+    canvas.yview_moveto(new_y / img.height)
+    lbl_coordinates.config(text=f"Coordenadas: ({x}, {y})")
+    lbl_scale.config(text=f"Escala: {current_zoom}")
+
+
+def zoom(event):
+    global img, tk_img, zoomed_img, canvas_img, current_zoom
+    scale = 1.1 if event.delta > 0 else 0.9
+    current_zoom *= scale
+    x = canvas.canvasx(event.x)
+    y = canvas.canvasy(event.y)
+    zoomed_img, new_x, new_y = zoom_in(original_img, (x, y), current_zoom)
+    img = zoomed_img
+    tk_img = ImageTk.PhotoImage(img)
+    canvas.delete(canvas_img)
+    canvas_img = canvas.create_image(0, 0, anchor=tk.NW, image=tk_img)
+    canvas.config(scrollregion=(0, 0, img.width, img.height))
+    canvas.config(width=img.width, height=img.height)
+    canvas.xview_moveto(new_x / img.width)
+    canvas.yview_moveto(new_y / img.height)
+    lbl_scale.config(text=f"Escala: {current_zoom:.2f}")
+
+
+def move_canvas(event):
+    global last_x, last_y
+    canvas.scan_dragto(event.x - last_x, event.y - last_y, gain=1)
+    last_x, last_y = event.x, event.y
+
+
+def scroll_start(event):
+    global last_x, last_y
+    last_x, last_y = event.x, event.y
 
 
 root = tk.Tk()
-root.title("Zoom na Imagem")
+root.title("Zoom Dinâmico na Imagem")
 
 frame_main = tk.Frame(root)
-frame_main.pack()
+frame_main.pack(fill=tk.BOTH, expand=True)
 
-canvas = tk.Canvas(frame_main)
-canvas.pack(side=tk.LEFT)
+canvas_frame = tk.Frame(frame_main)
+canvas_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-frame_coords = tk.Frame(frame_main)
-frame_coords.pack_forget()  # Inicialmente escondido
+canvas = tk.Canvas(canvas_frame, bg='gray')
+canvas.pack(fill=tk.BOTH, expand=True)
 
-btn_open = tk.Button(root, text="Abrir Imagem", command=open_image)
+frame_controls = tk.Frame(frame_main)
+frame_controls.pack(side=tk.RIGHT, fill=tk.Y, padx=10, pady=10)
+
+btn_open = tk.Button(frame_controls, text="Abrir Imagem", command=open_image)
 btn_open.pack(pady=5)
 
-tk.Label(frame_coords, text="X:").grid(row=0, column=0, padx=5, pady=5)
-entry_x = tk.Entry(frame_coords)
-entry_x.grid(row=0, column=1, padx=5, pady=5)
+lbl_x = tk.Label(frame_controls, text="X:")
+lbl_x.pack(pady=5)
+entry_x = tk.Entry(frame_controls)
+entry_x.pack(pady=5)
 
-tk.Label(frame_coords, text="Y:").grid(row=1, column=0, padx=5, pady=5)
-entry_y = tk.Entry(frame_coords)
-entry_y.grid(row=1, column=1, padx=5, pady=5)
+lbl_y = tk.Label(frame_controls, text="Y:")
+lbl_y.pack(pady=5)
+entry_y = tk.Entry(frame_controls)
+entry_y.pack(pady=5)
 
-btn_zoom = tk.Button(frame_coords, text="Aplicar Zoom", command=apply_zoom)
-btn_zoom.grid(row=2, column=0, columnspan=2, padx=5, pady=5)
+btn_zoom = tk.Button(frame_controls, text="Aplicar Zoom", command=apply_zoom)
+btn_zoom.pack(pady=5)
+
+lbl_coordinates = tk.Label(frame_controls, text="Coordenadas: ")
+lbl_coordinates.pack(pady=5)
+
+lbl_scale = tk.Label(frame_controls, text="Escala: 1")
+lbl_scale.pack(pady=5)
+
+canvas.bind("<ButtonPress-1>", scroll_start)
+canvas.bind("<B1-Motion>", move_canvas)
+canvas.bind("<MouseWheel>", zoom)
 
 root.mainloop()
