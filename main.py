@@ -3,12 +3,13 @@ import fitz  # PyMuPDF
 import base64
 import cv2
 import numpy as np
-from PIL import Image as PILImage
 import io
 
 class PDFViewer:
     def __init__(self):
         self.pdf_document = None
+        self.current_page = 0
+        self.zoom_level = 2.0
         self.coordinates = []
 
     def main(self, page: ft.Page):
@@ -32,17 +33,16 @@ class PDFViewer:
         def display_current_page():
             try:
                 if self.pdf_document:
-                    page_content = self.pdf_document[0]
-                    zoom = 2
-                    mat = fitz.Matrix(zoom, zoom)
+                    page_content = self.pdf_document[self.current_page]
+                    mat = fitz.Matrix(self.zoom_level, self.zoom_level)
                     pix = page_content.get_pixmap(matrix=mat)
                     
                     img_data = pix.tobytes("png")
-                    img = PILImage.open(io.BytesIO(img_data))
-                    img_np = np.array(img)
+                    img_np = np.frombuffer(img_data, np.uint8)
+                    img = cv2.imdecode(img_np, cv2.IMREAD_COLOR)
 
-                    # Usar OpenCV para exibir a imagem e capturar cliques
-                    cv2.imshow("PDF Image", img_np)
+                    # Exibir imagem e capturar cliques
+                    cv2.imshow("PDF Image", img)
                     cv2.setMouseCallback("PDF Image", on_mouse_click)
                     cv2.waitKey(0)
                     cv2.destroyAllWindows()
@@ -55,14 +55,28 @@ class PDFViewer:
                 update_coordinates_display()
 
         def update_coordinates_display():
-            coordinates_list.controls = [
-                ft.Text(f"X: {coord[0]}, Y: {coord[1]}") for coord in self.coordinates
+            coordinates_table.rows = [
+                ft.DataRow(
+                    cells=[
+                        ft.DataCell(ft.Text(str(i + 1))),
+                        ft.DataCell(ft.Text(f"X: {coord[0]}")),
+                        ft.DataCell(ft.Text(f"Y: {coord[1]}")),
+                    ]
+                )
+                for i, coord in enumerate(self.coordinates)
             ]
             page.update()
 
         pick_files_dialog = ft.FilePicker(on_result=pick_file_result)
 
-        coordinates_list = ft.Column()
+        coordinates_table = ft.DataTable(
+            columns=[
+                ft.DataColumn(ft.Text("ID")),
+                ft.DataColumn(ft.Text("X")),
+                ft.DataColumn(ft.Text("Y")),
+            ],
+            rows=[],
+        )
 
         page.overlay.append(pick_files_dialog)
         page.add(
@@ -72,7 +86,7 @@ class PDFViewer:
                         "Abrir PDF",
                         on_click=lambda _: pick_files_dialog.pick_files()
                     ),
-                    coordinates_list
+                    coordinates_table
                 ],
                 alignment=ft.MainAxisAlignment.CENTER,
                 horizontal_alignment=ft.CrossAxisAlignment.CENTER,
