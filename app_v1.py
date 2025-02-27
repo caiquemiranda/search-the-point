@@ -7,6 +7,8 @@ import cv2
 import numpy as np
 import base64
 import io
+import csv
+from datetime import datetime
 
 def main(page: ft.Page):
     page.title = "PDF Coordinate Picker"
@@ -15,6 +17,8 @@ def main(page: ft.Page):
 
     # Variáveis de estado
     coordinates = []
+    current_pdf_name = ""  # Para usar no nome do arquivo exportado
+
     data_table = ft.DataTable(
         columns=[
             ft.DataColumn(ft.Text("ID")),
@@ -22,7 +26,6 @@ def main(page: ft.Page):
             ft.DataColumn(ft.Text("Y")),
         ],
         width=300,
-        height=700
     )
 
     def update_table():
@@ -37,6 +40,26 @@ def main(page: ft.Page):
         ]
         page.update()
 
+    def export_coordinates():
+        if not coordinates:
+            page.show_snack_bar(ft.SnackBar(content=ft.Text("Não há coordenadas para exportar")))
+            return
+
+        try:
+            # Criar nome do arquivo com timestamp
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"coordenadas_{current_pdf_name}_{timestamp}.csv"
+            
+            with open(filename, 'w', newline='') as file:
+                writer = csv.writer(file)
+                writer.writerow(['ID', 'X', 'Y'])  # Cabeçalho
+                for i, (x, y) in enumerate(coordinates, 1):
+                    writer.writerow([i, x, y])
+            
+            page.show_snack_bar(ft.SnackBar(content=ft.Text(f"Coordenadas exportadas para {filename}")))
+        except Exception as e:
+            page.show_snack_bar(ft.SnackBar(content=ft.Text(f"Erro ao exportar: {str(e)}")))
+
     def mouse_callback(event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONDOWN:
             coordinates.append((x, y))
@@ -48,6 +71,9 @@ def main(page: ft.Page):
             
         try:
             pdf_path = e.files[0].path
+            global current_pdf_name
+            current_pdf_name = e.files[0].name.split('.')[0]  # Nome do PDF sem extensão
+            
             pdf_document = fitz.open(pdf_path)
             
             # Converter primeira página para imagem
@@ -92,15 +118,30 @@ def main(page: ft.Page):
     page.add(
         ft.Column(
             [
-                ft.ElevatedButton(
-                    "Carregar PDF",
-                    on_click=lambda _: file_picker.pick_files()
+                ft.Row(
+                    [
+                        ft.ElevatedButton(
+                            "Carregar PDF",
+                            on_click=lambda _: file_picker.pick_files()
+                        ),
+                        ft.ElevatedButton(
+                            "Exportar Coordenadas",
+                            on_click=lambda _: export_coordinates()
+                        ),
+                    ],
+                    alignment=ft.MainAxisAlignment.CENTER,
+                    spacing=20,
                 ),
                 ft.Container(
-                    content=data_table,
+                    content=ft.Column(
+                        [data_table],
+                        scroll=ft.ScrollMode.AUTO,
+                    ),
                     bgcolor="#D3D3D3",
                     padding=10,
                     border_radius=5,
+                    height=700,  # Altura fixa do container
+                    width=300,   # Largura fixa do container
                 )
             ],
             alignment=ft.MainAxisAlignment.CENTER,
