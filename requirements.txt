@@ -1,2 +1,4 @@
 flet
-PyMuPDF 
+PyMuPDF
+opencv-python
+numpy 
