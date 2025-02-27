@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings('ignore')
+
 import flet as ft
 import fitz  # PyMuPDF
 import cv2
