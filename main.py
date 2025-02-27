@@ -1,8 +1,8 @@
 import flet as ft
 import fitz  # PyMuPDF
 import os
-from PIL import Image
 import io
+import base64
 
 class PDFViewer:
     def __init__(self):
@@ -18,9 +18,12 @@ class PDFViewer:
         page.padding = 20
 
         def pick_file_result(e: ft.FilePickerResultEvent):
-            if e.files:
+            if e.files and e.files[0].path.lower().endswith('.pdf'):
                 file_path = e.files[0].path
                 load_pdf(file_path)
+            else:
+                # Opcional: mostrar mensagem de erro
+                page.show_snack_bar(ft.SnackBar(content=ft.Text("Por favor, selecione um arquivo PDF")))
 
         def load_pdf(file_path):
             self.pdf_document = fitz.open(file_path)
@@ -32,25 +35,36 @@ class PDFViewer:
             if self.pdf_document:
                 # Converter página do PDF para imagem
                 page_content = self.pdf_document[self.current_page]
-                pix = page_content.get_pixmap(matrix=fitz.Matrix(2, 2))
-                img_bytes = pix.tobytes()
+                # Aumentamos a escala para melhor qualidade
+                zoom = 2
+                mat = fitz.Matrix(zoom, zoom)
+                pix = page_content.get_pixmap(matrix=mat)
                 
-                # Converter para formato que o Flet pode exibir
-                img = Image.frombytes("RGB", [pix.width, pix.height], img_bytes)
-                img_byte_arr = io.BytesIO()
-                img.save(img_byte_arr, format='PNG')
-                img_byte_arr = img_byte_arr.getvalue()
-
-                pdf_image.src_base64 = img_byte_arr
+                # Converter diretamente para PNG
+                png_data = pix.tobytes("png")
+                
+                # Atualizar a imagem usando base64
+                pdf_image.src_base64 = base64.b64encode(png_data).decode()
+                
+                # Limpar marcadores ao mudar de página
+                pdf_stack.controls = [pdf_image]
                 page.update()
 
         def on_pdf_click(e: ft.TapEvent):
-            # Salvar coordenadas do clique
-            coordinates = (e.local_x, e.local_y)
+            # Corrigindo para usar as coordenadas corretas do evento
+            coordinates = (e.global_x, e.global_y)
+            
+            # Ajustar coordenadas relativas ao container
+            container_left = pdf_container.get_offset_x()
+            container_top = pdf_container.get_offset_y()
+            
+            x = coordinates[0] - container_left
+            y = coordinates[1] - container_top
+            
             self.coordinates.append({
                 'page': self.current_page,
-                'x': coordinates[0],
-                'y': coordinates[1]
+                'x': x,
+                'y': y
             })
             
             # Adicionar marcador visual
@@ -59,33 +73,45 @@ class PDFViewer:
                 height=10,
                 bgcolor=ft.colors.RED,
                 border_radius=5,
-                left=coordinates[0] - 5,
-                top=coordinates[1] - 5,
+                left=x - 5,
+                top=y - 5,
             )
             pdf_stack.controls.append(marker)
             page.update()
 
         pick_files_dialog = ft.FilePicker(
-            on_result=pick_file_result,
-            allow_multiple=False,
-            accept="application/pdf"
+            on_result=pick_file_result
         )
 
         pdf_image = ft.Image(
-            width=800,
-            height=600,
+            width=900,
+            height=800,
             fit=ft.ImageFit.CONTAIN,
+            border_radius=10
         )
 
         pdf_stack = ft.Stack(
             controls=[pdf_image],
-            width=800,
-            height=600,
+            width=900,
+            height=800,
         )
 
-        pdf_container = ft.GestureDetector(
-            content=pdf_stack,
-            on_tap=on_pdf_click,
+        # Criando um container centralizado para o PDF
+        pdf_container = ft.Container(
+            content=ft.Column(
+                controls=[
+                    ft.Container(
+                        content=ft.GestureDetector(
+                            content=pdf_stack,
+                            on_tap=on_pdf_click,
+                        ),
+                        alignment=ft.alignment.center
+                    )
+                ],
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER
+            ),
+            alignment=ft.alignment.center,
+            expand=True
         )
 
         page.overlay.append(pick_files_dialog)
@@ -96,7 +122,8 @@ class PDFViewer:
                         "Abrir PDF",
                         on_click=lambda _: pick_files_dialog.pick_files()
                     )
-                ]
+                ],
+                alignment=ft.MainAxisAlignment.CENTER
             ),
             pdf_container
         )
