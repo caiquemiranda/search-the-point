@@ -35,16 +35,13 @@ class PDFViewer:
             if self.pdf_document:
                 # Converter página do PDF para imagem
                 page_content = self.pdf_document[self.current_page]
-                # Aumentamos a escala para melhor qualidade
                 zoom = 2
                 mat = fitz.Matrix(zoom, zoom)
                 pix = page_content.get_pixmap(matrix=mat)
                 
-                # Converter diretamente para PNG
+                # Converter para PNG e atualizar imagem
                 png_data = pix.tobytes("png")
-                
-                # Atualizar a imagem usando base64
-                pdf_image.src_base64 = base64.b64encode(png_data).decode()
+                pdf_image.src = f"data:image/png;base64,{base64.b64encode(png_data).decode()}"
                 
                 # Limpar marcadores ao mudar de página
                 pdf_stack.controls = [pdf_image]
@@ -84,49 +81,76 @@ class PDFViewer:
         )
 
         pdf_image = ft.Image(
-            width=900,
-            height=800,
+            width=800,
+            height=700,
             fit=ft.ImageFit.CONTAIN,
-            border_radius=10
+            border_radius=10,
         )
 
         pdf_stack = ft.Stack(
             controls=[pdf_image],
-            width=900,
-            height=800,
+            width=800,
+            height=700,
         )
 
-        # Criando um container centralizado para o PDF
+        # Container do Stack com borda
+        pdf_stack_container = ft.Container(
+            content=ft.Stack(
+                controls=[pdf_image],
+                width=800,
+                height=700,
+            ),
+            border=ft.border.all(2, ft.Colors.BLUE_GREY_400),
+            border_radius=10,
+            padding=20,
+            bgcolor=ft.Colors.WHITE,
+            margin=ft.margin.only(bottom=50),
+        )
+
+        # Container principal centralizado
         pdf_container = ft.Container(
             content=ft.Column(
                 controls=[
                     ft.Container(
                         content=ft.GestureDetector(
-                            content=pdf_stack,
+                            content=pdf_stack_container,
                             on_tap=on_pdf_click,
                         ),
-                        alignment=ft.alignment.center
+                        alignment=ft.alignment.center,
+                        padding=ft.padding.only(top=20, bottom=20),
                     )
                 ],
-                horizontal_alignment=ft.CrossAxisAlignment.CENTER
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                spacing=30,
             ),
             alignment=ft.alignment.center,
-            expand=True
+            expand=True,
+            margin=ft.margin.all(30),
         )
 
-        page.overlay.append(pick_files_dialog)
-        page.add(
-            ft.Row(
+        # Container para o botão com padding
+        button_container = ft.Container(
+            content=ft.Row(
                 controls=[
                     ft.ElevatedButton(
                         "Abrir PDF",
                         on_click=lambda _: pick_files_dialog.pick_files()
                     )
                 ],
-                alignment=ft.MainAxisAlignment.CENTER
+                alignment=ft.MainAxisAlignment.CENTER,
             ),
+            padding=ft.padding.only(top=20, bottom=20),
+        )
+
+        page.overlay.append(pick_files_dialog)
+        page.add(
+            button_container,
             pdf_container
         )
+
+        # Atualizar a página principal
+        page.bgcolor = ft.Colors.BLUE_GREY_50
+        page.padding = 20
 
 if __name__ == '__main__':
     pdf_viewer = PDFViewer()
