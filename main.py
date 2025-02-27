@@ -67,7 +67,8 @@ class PDFViewer:
 
         pick_files_dialog = ft.FilePicker(
             on_result=pick_file_result,
-            allowed_extensions=["pdf"]
+            allow_multiple=False,
+            accept="application/pdf"
         )
 
         pdf_image = ft.Image(
